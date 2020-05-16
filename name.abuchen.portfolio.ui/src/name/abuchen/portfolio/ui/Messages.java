@@ -251,6 +251,7 @@ public class Messages extends NLS
     public static String ColumnQuoteChange_Option;
     public static String ColumnQuoteFeedHistoric;
     public static String ColumnQuoteFeedLatest;
+    public static String ColumnRebalancingBuy;
     public static String ColumnRebalancingIndicatorAbsoluteThreshold;
     public static String ColumnRebalancingIndicatorBarLength;
     public static String ColumnRebalancingIndicatorRelativeThreshold;

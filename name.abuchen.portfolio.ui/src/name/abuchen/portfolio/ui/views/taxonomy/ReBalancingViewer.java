@@ -1,6 +1,10 @@
 package name.abuchen.portfolio.ui.views.taxonomy;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 import javax.inject.Inject;
 
@@ -72,6 +76,80 @@ public class ReBalancingViewer extends AbstractNodeTreeViewer
         support.addColumn(column);
 
         addActualColumns(support);
+        ///////meins anfang
+        column = new Column("rebalancingZukauf", Messages.ColumnRebalancingBuy, SWT.RIGHT, 60); //$NON-NLS-1$
+        column.setLabelProvider(new ColumnLabelProvider()
+        {
+            TaxonomyNode[] highestDeltaPercentPositiveNode = new TaxonomyNode[1];
+            @Override
+            public String getText(Object element)
+            {
+                TaxonomyNode node = (TaxonomyNode) element;
+                if (node.getTarget() == null)
+                    return null;
+                
+                highestDeltaPercentPositiveNode[0] = node.getRoot();
+                int[] sumWeightTarget = {0};
+                if(node.getName().equals(Messages.LabelWithoutClassification))
+                    return null;
+                if(node.getParent().getName().equals(Messages.PerformanceChartLabelEntirePortfolio))
+                    node.getParent().getChildren().get(0).getChildren().stream()
+                    .filter(c -> c.isClassification())
+                    .filter(c -> c.getTarget().getAmount()!=0 && c.getActual().getAmount() != 0)
+                    .peek(c -> System.out.println(c.getWeight()))
+                    .peek(c -> sumWeightTarget[0] += c.getWeight())
+                    .forEach(c -> checkIfHighestDeltaAndHandelThat(c));
+                else 
+                    node.getParent().getParent().getChildren().get(0).getChildren().stream()
+                    .filter(c -> c.isClassification())
+                    .filter(c -> c.getTarget().getAmount()!=0 && c.getActual().getAmount() != 0)
+                    .peek(c -> System.out.println(c.getWeight()))
+                    .peek(c -> sumWeightTarget[0] += c.getWeight())
+                    .forEach(c -> checkIfHighestDeltaAndHandelThat(c));
+                
+                System.out.println(node.getWeight() +" / "+ sumWeightTarget[0]);
+                if(sumWeightTarget[0]>10000 && node.getWeight() != 0)
+                    return "Infinity";
+//                if(sumWeightTarget[0]<1000)
+//                    return "NaN";
+                
+                double deltaOfHighestDeltaPercent = getDelta(highestDeltaPercentPositiveNode[0]) / 100;
+                double highestDeltaPercent = (double) highestDeltaPercentPositiveNode[0].getWeight() / 10000;
+                double newMoneyToInvest = deltaOfHighestDeltaPercent / highestDeltaPercent;
+                
+                System.out.println();
+                System.out.println("----------Neue Rechnung---------");
+                System.out.println(node.getClassification() + " mit DeltaPercent " + getDeltaPercent(node) + " der Parent node ist " + node.getParent().getClassification() + " welcher Anz. Kinder hat: " + node.getParent().getChildren().size());
+                System.out.println("Das mit der höchsten, positiven Delta-Abweichung ist: " + highestDeltaPercentPositiveNode[0].getClassification());
+                System.out.println("Höhe des insg. zu investierenden Geldes: " + ((double) getDelta(highestDeltaPercentPositiveNode[0]) / 100) / ((double) highestDeltaPercentPositiveNode[0].getWeight() / 10000) + " was sich aus dem höchsten Delta: " + (getDelta(highestDeltaPercentPositiveNode[0]) / 100) + " und der Gewichtung berechnet " + (highestDeltaPercentPositiveNode[0].getWeight() / 100) + " %");
+//                System.out.println("Davon bekommt diese node: " + getAmountZukauf(node, (long) newMoneyToInvest) + " berechnet aus dem aktuellen Wert " node.getActual().getAmount() + " minus (dem Ziel " + node.getTarget() + " plus das");
+                
+                return getAmountZukauf(node, newMoneyToInvest);
+            }
+            
+            private Object checkIfHighestDeltaAndHandelThat(TaxonomyNode childNode)
+            {
+                return getDeltaPercent(highestDeltaPercentPositiveNode[0]) > getDeltaPercent(childNode) ? null : (highestDeltaPercentPositiveNode[0] = childNode);
+            }
+
+            private double getDeltaPercent(TaxonomyNode node)
+            {
+//                System.out.println(node.getClassification());
+//                System.out.println("Delta Value of " + node.getName() + (((double) node.getActual().getAmount() / (double) node.getTarget().getAmount()) - 1));
+                return ((double) node.getActual().getAmount() / (double) node.getTarget().getAmount()) - 1;
+            }
+            
+            private String getAmountZukauf(TaxonomyNode node, double newMoney) {
+                System.out.println("Zukauf Summe berechnet sich aus: AktuellemWert" + node.getActual() + " minus (ZielWert " + node.getTarget() + " plus gewichtetem Anteil der Zu investierenden Summe (" + newMoney + " * " + ((double) node.getWeight()) / 10000 + " =) " + Money.of(getModel().getCurrencyCode(), (long) ((newMoney * ((double) node.getWeight()) / 10000) * 100)) + ") und ergibt: " + Values.Money.format(node.getActual().subtract(node.getTarget().add(Money.of(getModel().getCurrencyCode(), (long) ((newMoney * ((double) node.getWeight()) / 10000) * 100)))), getModel().getCurrencyCode()));
+                return Values.Money.format(node.getTarget().add(Money.of(getModel().getCurrencyCode(), (long) ((newMoney * ((double) node.getWeight()) / 10000) * 100)).subtract(node.getActual())), getModel().getCurrencyCode());
+            }
+            
+            private double getDelta(TaxonomyNode node) {
+                return node.getActual().subtract(node.getTarget()).getAmount();
+            }
+        });
+        support.addColumn(column);
+        ////meins ende
 
         column = new Column("delta%", Messages.ColumnDeltaPercent, SWT.RIGHT, 60); //$NON-NLS-1$
         column.setLabelProvider(new ColumnLabelProvider()
