@@ -77,7 +77,7 @@ public class ReBalancingViewer extends AbstractNodeTreeViewer
 
         addActualColumns(support);
         ///////meins anfang
-        column = new Column("rebalancingZukauf", Messages.ColumnRebalancingBuy, SWT.RIGHT, 60); //$NON-NLS-1$
+        column = new Column("rebalancingNurZukauf", Messages.ColumnRebalancingBuy, SWT.RIGHT, 60); //$NON-NLS-1$
         column.setLabelProvider(new ColumnLabelProvider()
         {
             TaxonomyNode[] highestDeltaPercentPositiveNode = new TaxonomyNode[1];
@@ -85,6 +85,11 @@ public class ReBalancingViewer extends AbstractNodeTreeViewer
             public String getText(Object element)
             {
                 TaxonomyNode node = (TaxonomyNode) element;
+                return calculateRebalancingBuyOnly(node);
+            }
+
+            private String calculateRebalancingBuyOnly(TaxonomyNode node)
+            {
                 if (node.getTarget() == null)
                     return null;
                 
@@ -92,26 +97,23 @@ public class ReBalancingViewer extends AbstractNodeTreeViewer
                 int[] sumWeightTarget = {0};
                 if(node.getName().equals(Messages.LabelWithoutClassification))
                     return null;
-                if(node.getParent().getName().equals(Messages.PerformanceChartLabelEntirePortfolio))
-                    node.getParent().getChildren().get(0).getChildren().stream()
+                
+                TaxonomyNode olderNode = node.getParent();
+                if(olderNode.getName().equals(Messages.PerformanceChartLabelEntirePortfolio))
+                    olderNode = node;
+                
+                olderNode.getChildren().stream()
                     .filter(c -> c.isClassification())
-                    .filter(c -> c.getTarget().getAmount()!=0 && c.getActual().getAmount() != 0)
-                    .peek(c -> System.out.println(c.getWeight()))
-                    .peek(c -> sumWeightTarget[0] += c.getWeight())
-                    .forEach(c -> checkIfHighestDeltaAndHandelThat(c));
-                else 
-                    node.getParent().getParent().getChildren().get(0).getChildren().stream()
-                    .filter(c -> c.isClassification())
-                    .filter(c -> c.getTarget().getAmount()!=0 && c.getActual().getAmount() != 0)
-                    .peek(c -> System.out.println(c.getWeight()))
+                    .filter(c -> c.getTarget().getAmount()!=0 || c.getActual().getAmount() != 0)
+                    .peek(c -> System.out.println(c.getWeight() + c.getName()))
                     .peek(c -> sumWeightTarget[0] += c.getWeight())
                     .forEach(c -> checkIfHighestDeltaAndHandelThat(c));
                 
                 System.out.println(node.getWeight() +" / "+ sumWeightTarget[0]);
                 if(sumWeightTarget[0]>10000 && node.getWeight() != 0)
                     return "Infinity";
-//                if(sumWeightTarget[0]<1000)
-//                    return "NaN";
+                if(sumWeightTarget[0]<10000)
+                    return "NaN";
                 
                 double deltaOfHighestDeltaPercent = getDelta(highestDeltaPercentPositiveNode[0]) / 100;
                 double highestDeltaPercent = (double) highestDeltaPercentPositiveNode[0].getWeight() / 10000;
